@@ -1,0 +1,36 @@
+name: Feature request
+description: Suggest an improvement to the skill, docs, or examples
+title: "[feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or gap
+      description: What failure mode or confusion does this address?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+    validations:
+      required: true
+  - type: dropdown
+    id: surfaces
+    attributes:
+      label: Which files should change?
+      multiple: true
+      options:
+        - SKILL.md
+        - CLAUDE.md
+        - Cursor .mdc rule
+        - README / README.zh.md
+        - EXAMPLES.md
+        - install script
+  - type: checkboxes
+    id: breaking
+    attributes:
+      label: Impact
+      options:
+        - label: This would change agent behavior for existing users (needs version bump)

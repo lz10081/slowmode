@@ -1,0 +1,33 @@
+name: Question
+description: Install help, usage, or how the gates work
+title: "[question]: "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check [README.md](https://github.com/lz10081/slowmode/blob/main/README.md) and [EXAMPLES.md](https://github.com/lz10081/slowmode/blob/main/EXAMPLES.md) first.
+  - type: dropdown
+    id: topic
+    attributes:
+      label: Topic
+      options:
+        - Installation
+        - Gate workflow / modes
+        - FEATURES.md ledger
+        - Sub-agent delegation
+        - Cursor / Amp / Claude setup
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context (OS, agent, what you tried)
+      placeholder: macOS, Cursor, cloned repo to ~/.cursor/skills/...

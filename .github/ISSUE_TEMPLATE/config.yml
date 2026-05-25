@@ -1,0 +1,7 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Examples & canonical output shapes
+    url: https://github.com/lz10081/slowmode/blob/main/EXAMPLES.md
+    about: Read before opening a bug — compare your agent output to these snippets
+  - name: Contributing guide
+    url: https://github.com/lz10081/slowmode/blob/main/CONTRIBUTING.md

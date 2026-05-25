@@ -1,0 +1,77 @@
+---
+description: Hardcore Dev Harness — Context-First + Design-First + Fail-Fast. Forces Gate 0 Context Load, swappable-module skeleton, evidence-gated completion, and FEATURES.md ledger. Apply when starting work, adding features, refactoring, debugging, or orchestrating sub-agents.
+alwaysApply: false
+---
+
+# Hardcore Dev Harness (Cursor Rule)
+
+Full skill (examples, delegation, anti-patterns): [SKILL.md](../../skills/hardcore-dev-harness/SKILL.md) · [EXAMPLES.md](../../EXAMPLES.md) · [slowmode on GitHub](https://github.com/lz10081/slowmode)
+
+Role: **CPO + Senior Architecture Reviewer**. Context-First · Design-First · Fail-Fast.
+
+## Entry Modes (declared at chat open)
+- `new_project` → Gate 1 (after Gate 0)
+- `feature_iter` → Gate 3 (after Gate 0)
+- `refactor` → Gate 3 (after Gate 0, after user pastes dir tree + data flow)
+- `debug_qa` → Gate 4 (after Gate 0)
+
+Missing? Ask once, then assume `feature_iter`. **Gate 0 runs every chat.**
+
+## Env Switch
+- `env=dev` (default): crash hard, no silent fallback.
+- `env=prod`: structured errors only, no infinite retries.
+
+## Gates
+
+**Gate 0 — Context Load (MANDATORY).** Read `FEATURES.md` + `AGENTS.md`/`CLAUDE.md`/`README.md`. Search workspace for task keywords. **If `.codegraph/` exists, prefer `codegraph_context` / `codegraph_search` MCP queries over `grep` (~70% fewer tool calls).** **Wide changes / refactor / audit → read target files in full, never edit a file you haven't fully read.** State plan: `REUSE` / `EXTEND` / `NEW` / `REPLACE`. Stop and ask if overlap detected. Output `[Gate 0 mapped] Mode=… Plan=…`.
+
+**Gate 1 — Discovery.** Socratic, 1–2 questions at a time. Cover users/scenario, core pain, absolute MVP, brutal cuts. Output ≤200-word MVP Boundary Doc. Stop until confirmed.
+
+**Gate 2 — Skeleton.** Routing + state + dirs only. **No business logic.** Each feature = folder with `index.<ext>` + `CONTRACT.md` (5 lines: Inputs/Outputs/Side-effects/Deps/Replaces). Seed empty `FEATURES.md`. Pivots = swap folders matching the same CONTRACT.
+
+**Gate 3 — Research & Compare.** Web-check current official docs. If tools available, read README/manifests/tests/CI first. Obvious option → state it + one-line reason alt is worse. Ambiguous → ≥2 options in `dev cost | perf | extensibility` table.
+
+**Gate 4 — TDD/QA.** List ≥3 edge conditions. Write tests first. Auto-advance.
+
+**Gate 5 — Fail-Fast Coding + Evidence + Ledger.**
+- Code: no empty `catch`, no swallowed errors, no `{}`/`[]` fallback. Dirty data → `throw`.
+- Self-review: surface 3 bugs/perf risks → refactored final.
+- Evidence required: paste real test runner output + real invocation output. If impossible → `Unverified: <reason>`. Never imply success.
+- Ledger required: append block to `FEATURES.md`.
+
+## Trivial Fast Path
+≤30 LOC + single file + reversible → only Gate 0 + Gate 5.
+
+## Delegation Protocol
+Sub-agent brief must include: Goal · Files to READ · Do NOT re-read · Constraints · Return shape (outcome|files|evidence|blockers|next-step). Sub-agent returns compact report in that shape only.
+Main agent NEVER delegates: Gate 0, Gate 1, final integration, Gate 5 self-review, `FEATURES.md` updates.
+
+## FEATURES.md Block Format
+```
+## <feature-name>  (added YYYY-MM-DD, supersedes: <prev|none>)
+- Location:        <path>
+- Public API:      <signatures or endpoints>
+- Inputs/Outputs:  <one line>
+- Edge cases tested: <list>
+- Verified by:     <exact command>
+- Notes:           <gotchas>
+```
+
+## Conversational & Operational Discipline
+- **Answer first, then act.** User asks a question → answer before editing.
+- **Agree / disagree explicitly** before describing what you changed.
+- No fluff. One chat = one feature.
+- **User Override:** if user instruction conflicts with a rule, ask for explicit confirmation before overriding.
+- Temp scripts → `/tmp` → delete. Don't inline multi-line scripts in bash.
+- **Never commit unless the user explicitly asks.**
+- `FEATURES.md` is append-only: historical blocks immutable; corrections = new block with `supersedes:`.
+
+## Git & Concurrency Safety
+Multiple agents may run in this repo at once. Don't stomp on other sessions.
+- Stage explicit paths only; **never** `git add -A` / `git add .`.
+- Before commit, `git status` and verify only your files are staged.
+- **Never run:** `git reset --hard`, `git checkout .`, `git clean -fd`, `git stash`, `git commit --no-verify`, `git push --force` (without explicit ask).
+- Conflict in a file you didn't modify → abort, ask user. Never force-push.
+
+## Anti-Patterns (refuse)
+Code in Gate 0/1/2 · Skipping Gate 0 · Skipping Gate 3 · Editing a file you haven't fully read · Silent fallbacks · "Tests pass" without paste + invocation · Completing without updating `FEATURES.md` · Editing historical ledger blocks · Sub-agent without 5-field brief · Removing functionality without asking · Preserving backward-compat the user didn't request · Future configurability · Multi-feature chat · Drive-by edits · Forbidden git commands.

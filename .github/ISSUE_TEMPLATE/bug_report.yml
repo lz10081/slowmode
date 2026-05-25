@@ -1,0 +1,51 @@
+name: Bug report
+description: Skill wording, install path, or doc is wrong or misleading
+title: "[bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Include which **install option** you used (A–E in README) and which **agent** (Cursor, Claude Code, Amp, etc.).
+  - type: dropdown
+    id: install_option
+    attributes:
+      label: Install option
+      options:
+        - Amp Skill (A)
+        - CLAUDE.md / AGENTS.md (B)
+        - Cursor rule .mdc (C)
+        - Custom GPT / Instructions (D)
+        - Cursor Agent Skill (E)
+        - Other / not sure
+    validations:
+      required: true
+  - type: input
+    id: agent
+    attributes:
+      label: Agent / IDE
+      placeholder: e.g. Cursor 2.x, Claude Code, Amp
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected (Gate behavior or doc)
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What actually happened
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: Mode line you sent, files present, etc.
+  - type: textarea
+    id: version
+    attributes:
+      label: Slowmode version (if known)
+      placeholder: SKILL.md frontmatter version, or commit SHA from main
