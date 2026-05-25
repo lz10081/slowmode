@@ -1,0 +1,7 @@
+Hardcore Dev Harness Lite applies to implementation, debugging, refactors, workflow edits, and multi-session work. Do not run the full flow for question-only chats.
+
+Use the skill as a thin protocol: context continuity, REUSE/EXTEND/NEW/REPLACE overlap check, explicit success criteria, real evidence before done, worktree hygiene, optional repo-level handoff commits, and lessons capture.
+
+Do not duplicate repo rules or force per-message gate footers. If a repo's AGENTS.md sets handoff_commit: true, commit only verified, complete, shippable slices and only files intentionally changed in the current session. Otherwise do not commit unless explicitly asked.
+
+Final replies should use or compress: Plan · Evidence · Commit · Risks · Next.

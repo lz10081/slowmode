@@ -1,186 +1,223 @@
-# Hardcore Dev Harness — Worked Examples
+# Hardcore Dev Harness Lite — Worked Examples
 
-Concrete, copy-pastable examples of what the skill produces. Read this once and you (or any new agent loading the skill) will know the exact shape of each artifact.
-
-Scenario throughout: **building a "swipe-to-delete ledger card" component** for a personal finance app.
+Concrete examples of the output shapes Lite expects. Scenario examples use a mature jobs/scoring repo and a UI repo to show that Lite is not a heavy gate system.
 
 ---
 
-## 1. Ideal Gate 0 Opener
+## 1. Continuity opener
 
-What the agent should say in the **first reply** of every new chat:
+Good first implementation reply:
 
-```
-[Gate 0 — Context Load]
+```text
+Read within continuity budget:
+- FEATURES.md: existing scoring-v1 and queue dashboard entries
+- DECISIONS.md: lexical scoring preferred over embeddings for deterministic cost control
+- PROGRESS.md: next step says inspect hidden-gem false positives
 
-Read:
-- FEATURES.md (3 existing features: auth, ledger-list, currency-format)
-- AGENTS.md (project: React Native + TypeScript, Vitest, Reanimated 3)
-- README.md (data flow: Zustand store → ledger screens)
+EXTEND: existing scoring pipeline. The user asked to improve hidden-gem recall, and the current ownership path is job_agent.py + SQLite score_job flow.
 
-Grep "swipe" / "card" / "delete":
-- features/ledger-list/index.tsx — uses static list, no swipe handler
-- No existing swipe gesture utility
-
-Existing relevant: ledger-list (consumer that will host the new card).
-Plan: NEW: ledger-card-swipe-delete (no overlap; will be consumed by ledger-list via its current row-render prop).
-
-[Gate 0 mapped] Mode = feature_iter. Plan = NEW. Proceeding to Gate 3.
+Success criteria:
+- Improve scoring logic without changing human-submit boundaries.
+- Verify with targeted tests, score run, SQL bucket sanity, API/browser check.
+- Show visible sample review for positives, suspicious cases, and rejects.
 ```
 
-**Why this works:** the agent declares what it read, what already exists, what the relationship is, and what plan it picked — all before writing a single line of code. The user can correct it in 10 seconds if the plan is wrong.
+Why it works: the agent declares continuity, overlap, and success criteria once. It does not emit per-message gate footers.
 
 ---
 
-## 2. Filled `CONTRACT.md` (Gate 2 output)
+## 2. Spec-complete bypass
 
-Lives at `features/ledger-card-swipe-delete/CONTRACT.md`:
+User gives a four-phase spec with acceptance criteria.
+
+Good response:
+
+```text
+EXTEND: queue/scoring path. Your phases are clear enough to use as the boundary doc.
+
+Acceptance criteria:
+- Implement phases 1–4 as specified.
+- Preserve the existing human-submit boundary and DB patterns.
+- Verify with tests, score invocation, SQL sanity, API/browser checks, and sample review.
+
+I won't add embeddings, auto-learning weights, or broad LLM reclassification unless you ask.
+```
+
+Why it works: the agent does not re-run discovery when the user already wrote the boundary.
+
+---
+
+## 3. State-file ownership
+
+Use the right file for the right kind of knowledge:
 
 ```markdown
-Inputs:        { entry: LedgerEntry, onDelete: (id: string) => void }
-Outputs:       JSX.Element (a swipeable row that calls onDelete on full swipe-left)
-Side-effects:  none (pure presentational; parent owns mutation)
-Deps:          react-native-reanimated@3, react-native-gesture-handler@2
-Replaces:      none
-```
-
-**Why exactly 5 lines:** any consumer or future agent reads this in 5 seconds. A pivot = drop this folder and create a new one whose `Inputs` / `Outputs` / `Side-effects` lines match — no consumer change needed.
-
----
-
-## 3. Filled `FEATURES.md` Block (Gate 5 output)
-
-After Gate 5 completes, the agent appends this block to `FEATURES.md` (append-only — never edit past blocks):
-
-```markdown
-## ledger-card-swipe-delete  (added 2026-05-23, supersedes: none)
-- Location:        features/ledger-card-swipe-delete/
-- Public API:      <LedgerCardSwipeDelete entry={…} onDelete={…} />
-- Inputs/Outputs:  { entry, onDelete } → swipeable row JSX
+FEATURES.md
+## hidden-gems-scoring-v2  (added 2026-05-25, supersedes: hidden-gems-scoring-v1)
+- Location:        job_agent.py, dashboard hidden gems endpoint
+- Public API:      /api/hidden-gems response bucket semantics unchanged
+- Inputs/Outputs:  scored jobs → bucketed queue/hidden-gem results
 - Edge cases tested:
-  - empty entry.note renders without crash
-  - swipe < threshold (60% of width) does NOT trigger onDelete
-  - rapid double-swipe only fires onDelete once
-- Verified by:     `pnpm vitest features/ledger-card-swipe-delete`
-- Notes:           Reanimated worklet runs on UI thread; do NOT pass non-shareable callbacks in. onDelete is wrapped with runOnJS internally.
+  - ambiguous sales/design roles do not dominate hidden gems
+  - senior technical roles can still surface without exact keyword matches
+- Verified by:     `python -m unittest tests/test_job_agent_flows.py`; score run on sample DB; SQL bucket sanity
+- Notes:           For scoring changes, show 5 positives, 5 suspicious cases, and 5 rejects in final handoff.
+
+DECISIONS.md
+## deterministic lexical scoring over embeddings  (2026-05-25)
+- Decision: Use deterministic lexical/role-family scoring, not embeddings.
+- Context: Hidden-gem recall needed to improve without slow or costly inference.
+- Rationale: Cheap, explainable, testable, and avoids feedback-loop learning.
+- Rejected alternatives:
+  - embeddings: harder to debug and unnecessary for current constraints
+- Impact: Future scoring work should first extend lexical families and evidence checks.
+
+PROGRESS.md
+## Next steps
+- Inspect remaining hidden-gem false positives after the next backfill.
 ```
 
-**Why this matters:** the *next* agent (or you, 3 weeks later) opens `FEATURES.md`, sees this block in Gate 0, and instantly knows: where it lives, how to call it, what was tested, what gotcha exists, how to re-verify. Zero re-discovery cost.
+Rule: if it changes what exists and how it was verified, use `FEATURES.md`; if it changes how we build, use `DECISIONS.md`; if it changes what to do next, use `PROGRESS.md`.
 
 ---
 
-## 4. Evidence Block (Gate 5 — the "tests pass" claim)
+## 4. Evidence block
 
-Bad (rejected by the skill):
-> "I implemented the component and all tests pass. You can use it now."
+Bad:
 
-Good (required by the skill):
+> Tests pass and I checked the UI.
+
+Good:
+
+````markdown
+Evidence:
+- Tests:
+  ```text
+  $ python -m unittest tests/test_job_agent_flows.py
+  ..............................................
+  ----------------------------------------------------------------------
+  Ran 46 tests in 3.218s
+
+  OK
+  ```
+- Score invocation:
+  ```text
+  $ python job_agent.py score --limit 500
+  scored=500 updated=500 errors=0 elapsed=42.1s
+  ```
+- API:
+  ```text
+  $ curl -s http://localhost:8000/api/hidden-gems | jq '.jobs | length'
+  25
+  ```
+- Browser: hidden-gems page renders 25 rows; top cards show technical roles, no visible sales/design false positives in first screen.
 ````
-Tests:
-```
-$ pnpm vitest features/ledger-card-swipe-delete
 
- ✓ renders entry note (8ms)
- ✓ does not call onDelete on partial swipe (24ms)
- ✓ calls onDelete exactly once on full swipe (31ms)
- ✓ handles empty note without crash (5ms)
+If a check is blocked:
 
- Test Files  1 passed (1)
-      Tests  4 passed (4)
-```
-
-Real invocation (rendered in Storybook, swiped manually via tmux + adb):
-```
-$ adb shell input swipe 800 400 100 400 300
-[ledger-card] swipe distance: 700px / threshold: 240px → onDelete('entry-42') called
-```
-````
-
-If you can't run it, say so explicitly — never imply success:
-> `Unverified: host has no React Native simulator. Test suite passes (output above); manual swipe invocation deferred to user.`
-
----
-
-## 5. Delegation Brief (main agent → sub-agent)
-
-When the main agent needs a sub-agent (e.g., investigate the Reanimated 3 worklet rules in parallel), the brief MUST contain all five fields:
-
-```
-Goal:           Confirm whether `runOnJS` is required to call `onDelete` from inside a worklet, per Reanimated 3 official docs.
-
-Files to READ:  - docs/external/reanimated-v3-runOnJS.md (just downloaded)
-                - features/ledger-card-swipe-delete/CONTRACT.md
-
-Do NOT re-read: - FEATURES.md (already in main context)
-                - AGENTS.md (already in main context)
-
-Constraints:    - Only confirm/deny + cite official-doc URL.
-                - Do NOT write or modify any source files.
-                - Do NOT run the test suite.
-
-Return shape:
-  outcome:    yes / no + one-line reason
-  files:      (none expected)
-  evidence:   cited URL + relevant quote
-  blockers:   (none expected)
-  next step:  (none expected)
-```
-
-The sub-agent returns a **compact report** in exactly that shape — no transcript, no "I read the file then I thought about it then…".
-
-```
-outcome:   YES — runOnJS is required to call JS-thread callbacks from a worklet.
-files:     (none)
-evidence:  https://docs.swmansion.com/react-native-reanimated/docs/guides/worklets#calling-javascript-functions-from-worklets — "To call a regular JavaScript function from a worklet you must wrap it with runOnJS."
-blockers:  (none)
-next step: (none)
+```text
+Unverified: full backfill exceeded the 5-minute budget. Verified only: 500-row sample score run. Remaining: full DB score run and post-backfill SQL distribution.
 ```
 
 ---
 
-## 6. "Agree / Disagree" Response Pattern
+## 5. Data-pipeline sample review
 
-User: *"I think you should just use `try { onDelete(id) } catch {}` so swipe never fails."*
+Do not merely say "I sampled rows." Show rows or the exact query.
 
-Bad (silently complies, violates Fail-Fast):
-> "Sure, done. I've wrapped onDelete in a try/catch."
+```sql
+SELECT id, title, company, bucket, semantic_score, deterministic_score, score_reason
+FROM jobs
+WHERE bucket IN ('hidden_gem', 'reject')
+ORDER BY updated_at DESC
+LIMIT 15;
+```
 
-Good (explicit stance first, then action — or refusal):
-> **disagree.** Silent `catch {}` here hides bugs in the parent's mutation logic — the user swipes, sees the row disappear, but the backend delete actually failed. Per Fail-Fast §5 we let it throw so the parent shows a real error toast. If you want UX softness, that belongs in the parent's `onDelete`, not inside the swipe component.
->
-> Not making the change. Want me to instead surface a callback like `onError?: (e: Error) => void` so the parent can decide?
+Final handoff excerpt:
 
----
+```text
+Sample review:
+good positives:
+- 1832 | Staff Backend Engineer | Acme | hidden_gem | 0.86 | 0.78 | backend infra role, low applicant count
+- 1991 | ML Platform Engineer | Northstar | hidden_gem | 0.82 | 0.74 | platform + seniority match
 
-## 7. Before / After (same task, with vs. without the skill)
+suspicious/borderline:
+- 2044 | Solutions Architect | VendorCo | hidden_gem | 0.71 | 0.52 | customer-facing title; acceptable only with infra keywords
 
-### Without the skill
-Agent gets "build a swipe-to-delete row" and immediately writes 180 lines: a new gesture util, a new animation hook, a styled component, a `try { ... } catch { return null }` wrapper, no tests, no docs. Output: "Done, let me know if you need changes!" The next chat re-asks because nothing is documented; the parent breaks because the wrapper swallowed an error.
-
-### With the skill
-- **Gate 0 (15 sec):** declares `NEW`, names which existing feature will consume it.
-- **Gate 3 (1 min):** notes Reanimated 3 is the project's existing animation lib (no new dep). One sentence: "Alternative would be `react-native-swipeable-row` but adds a dep — worse."
-- **Gate 4 (2 min):** lists 3 edge tests (partial swipe, empty note, double-swipe).
-- **Gate 5 (5 min):** ~60 lines, no silent catches, tests pasted, ledger appended.
-
-Same outcome, **third the code, zero hidden bugs, fully discoverable next session.**
-
----
-
-## 8. Trivial Fast Path — example
-
-User: *"There's a typo in the placeholder text on the amount input — it says 'Amout'."*
-
-The agent does NOT run Gate 1/2/3/4. It runs:
-
-1. **Gate 0:** grep `Amout` → one match in `features/ledger-entry-form/index.tsx`. Plan = `EXTEND: ledger-entry-form` (cosmetic). [Gate 0 mapped] Mode = feature_iter. Fast path.
-2. **Gate 5:** 1-line fix, paste the diff, paste the snapshot test output, append a 3-line note to `FEATURES.md` under the existing `ledger-entry-form` block (or supersede with a corrected block if there's prior contradicting info).
-
-Total time: 30 seconds. Zero bureaucracy. Fast path exists for exactly this.
+rejects/excluded:
+- 1888 | Account Executive | Salesly | reject | 0.12 | 0.05 | sales family hard reject
+```
 
 ---
 
-## How to use this file
+## 6. Handoff commit
 
-- **For users:** Read once to know what you should be seeing in your chats. If your agent doesn't produce something in this shape, push back.
-- **For agents loading the skill:** Treat the snippets above as the **canonical output format**. Don't reinvent the shape.
+If `AGENTS.md` does **not** set `handoff_commit: true`:
+
+```markdown
+Commit:
+- Not committed: repo does not enable `handoff_commit`, and the user did not explicitly ask for a commit.
+```
+
+If `handoff_commit: true` and checks pass:
+
+```markdown
+Commit:
+- `abc1234` — update hidden-gem scoring evidence profile
+```
+
+If unrelated dirty files exist:
+
+```markdown
+Commit:
+- Not committed: `git status` shows unrelated changes in `README.md` and `scripts/install.sh` that this session did not own. I left only intentional task diffs and did not stage unrelated files.
+```
+
+---
+
+## 7. Final handoff block
+
+```markdown
+Plan:
+- Converted the old gate-heavy harness into Lite: continuity, overlap, success criteria, evidence, worktree hygiene, optional handoff commit, lessons.
+
+Evidence:
+- `./scripts/install.sh --help` prints the updated install helper usage.
+- Markdown links and frontmatter reviewed in `SKILL.md`, `CLAUDE.md`, and `.mdc`.
+
+Commit:
+- Not committed: current repo policy requires explicit user commit request.
+
+Risks:
+- README examples are intentionally shorter; old gate-specific examples were removed.
+
+Next:
+- Try installing into a test repo and confirm the Cursor rule stays concise.
+```
+
+---
+
+## 8. Delegation brief
+
+```text
+Goal:           Review whether README and README.zh describe the same Lite behavior.
+Files to READ:  README.md, README.zh.md, skills/hardcore-dev-harness/SKILL.md
+Do NOT re-read: git history or install script
+Constraints:    read-only; report inconsistencies only
+Return shape:   outcome | files inspected | evidence | blockers | next step
+```
+
+---
+
+## 9. Lessons capture
+
+When the user corrects a recurring behavior:
+
+```markdown
+## Harness should stay thin
+- Mistake: Repeating gate labels and duplicating repo/user rules creates ceremony.
+- Correct behavior: Use Lite as overlap + evidence + ledger + handoff protocol, not a second workflow personality.
+- Trigger: When editing AGENTS.md, Cursor rules, or harness docs.
+```
+
+Add at most one lesson per session unless the user corrects multiple distinct recurring behaviors.

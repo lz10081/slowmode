@@ -11,7 +11,10 @@ usage() {
 Slowmode install helper
 
 Targets:
+  global          Install Lite skill + print User Rules setup (all-project persistence)
+  user-rule       Show text to paste into Cursor Settings → Rules → User Rules
   cursor-rule     Copy .mdc into .cursor/rules/ (default: current directory)
+  cursor-rule-always  Same as cursor-rule but alwaysApply: true
   cursor-skill    Copy skill to ~/.cursor/skills/hardcore-dev-harness/
   project-skill   Copy skill to .cursor/skills/hardcore-dev-harness/ in cwd
   claude-md       Copy CLAUDE.md into destination (default: cwd)
@@ -19,7 +22,9 @@ Targets:
   templates       Copy FEATURES.md + CONTRACT.md templates into cwd
 
 Examples:
+  ./scripts/install.sh global
   ./scripts/install.sh cursor-rule
+  ./scripts/install.sh cursor-rule-always /path/to/your-app
   ./scripts/install.sh cursor-skill
   ./scripts/install.sh claude-md /path/to/my-app
   ./scripts/install.sh amp-skill
@@ -37,10 +42,43 @@ die() { echo "error: $*" >&2; exit 1; }
 
 install_cursor_rule() {
   local dest="${1:-.}"
+  local always="${2:-false}"
   mkdir -p "$dest/.cursor/rules"
-  cp "$REPO_ROOT/.cursor/rules/hardcore-dev-harness.mdc" "$dest/.cursor/rules/"
-  echo "Installed: $dest/.cursor/rules/hardcore-dev-harness.mdc"
-  echo "Tip: In Cursor, enable the rule for your project or @-mention hardcore-dev-harness."
+  if [[ "$always" == "true" ]]; then
+    sed 's/alwaysApply: false/alwaysApply: true/' \
+      "$REPO_ROOT/.cursor/rules/hardcore-dev-harness.mdc" >"$dest/.cursor/rules/hardcore-dev-harness.mdc"
+  else
+    cp "$REPO_ROOT/.cursor/rules/hardcore-dev-harness.mdc" "$dest/.cursor/rules/"
+  fi
+  echo "Installed: $dest/.cursor/rules/hardcore-dev-harness.mdc (alwaysApply=$always)"
+  if [[ "$always" != "true" ]]; then
+    echo "Tip: Use 'cursor-rule-always' or 'global' if you want Lite active without invoking the skill."
+  fi
+}
+
+install_user_rule() {
+  local rule_file="${HOME}/.cursor/skills/hardcore-dev-harness/USER-RULE.txt"
+  if [[ ! -f "$rule_file" ]]; then
+    install_cursor_skill
+  fi
+  echo ""
+  echo "=== Paste into Cursor Settings → Rules → User Rules ==="
+  echo "(User Rules are plain text, always on, all projects. Keep them short; repo-specific overrides belong in AGENTS.md.)"
+  echo ""
+  cat "$rule_file"
+  echo ""
+  echo "=== End User Rule ==="
+  echo "Save in Settings, then start a NEW Agent chat. Use the skill/rule as a Lite protocol, not per-message gate footers."
+  echo "Details: ${HOME}/.cursor/skills/hardcore-dev-harness/PERSISTENCE.md"
+}
+
+install_global() {
+  install_cursor_skill
+  cp "$REPO_ROOT/skills/hardcore-dev-harness/USER-RULE.txt" \
+    "${HOME}/.cursor/skills/hardcore-dev-harness/USER-RULE.txt"
+  cp "$REPO_ROOT/skills/hardcore-dev-harness/PERSISTENCE.md" \
+    "${HOME}/.cursor/skills/hardcore-dev-harness/PERSISTENCE.md"
+  install_user_rule
 }
 
 install_cursor_skill() {
@@ -95,7 +133,10 @@ main() {
 
   case "${target}" in
     -h|--help|help|"") usage; exit 0 ;;
-    cursor-rule)     install_cursor_rule "$dest" ;;
+    global)          install_global ;;
+    user-rule)       install_user_rule ;;
+    cursor-rule)     install_cursor_rule "$dest" "false" ;;
+    cursor-rule-always) install_cursor_rule "$dest" "true" ;;
     cursor-skill)    install_cursor_skill ;;
     project-skill)   install_project_skill "$dest" ;;
     claude-md)       install_claude_md "$dest" ;;

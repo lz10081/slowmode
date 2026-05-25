@@ -1,321 +1,176 @@
-# Slowmode — 硬核开发门禁技能（Hardcore Dev Harness）
+# Slowmode — Hardcore Dev Harness Lite
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-[![Version](https://img.shields.io/badge/skill-1.2.0-blue)](./skills/hardcore-dev-harness/SKILL.md)
+[![Version](https://img.shields.io/badge/skill-2.0.0-blue)](./skills/hardcore-dev-harness/SKILL.md)
 
 [English](./README.md) | [简体中文](./README.zh.md)
 
-> 一套可移植的 **Agent Skill**，把任何 AI 编程助手变成 **首席产品官 + 资深架构审查员** —— 上下文先行、证据闭环、Ledger 留痕。需求、骨架、调研、测试没到位之前，**不写业务代码**。
+> 一套可移植的 **Agent Skill**，给 AI 编程助手增加一层轻量工程协议：跨会话上下文、重复建设检查、成功标准、证据闭环、工作树卫生、可选 repo 级自动 handoff commit，以及 lessons 沉淀。
 
-**故意慢下来，才能真的快** —— 最少代码、最干净的原子模块、零隐藏缺陷。
-
----
-
-## 目录
-
-- [快速开始](#快速开始)
-- [这是什么](#这是什么)
-- [解决什么问题](#解决什么问题)
-- [支持的 Agent](#支持的-agent)
-- [门禁流程](#门禁流程)
-- [场景入口 Mode](#场景入口-mode)
-- [安装](#安装)
-- [在你的项目里使用](#在你的项目里使用)
-- [日常 Prompt](#日常-prompt)
-- [核心哲学](#核心哲学)
-- [Sub-agent 委派](#sub-agent-委派)
-- [FEATURES.md 账本](#featuresmd-账本)
-- [范例](#范例)
-- [仓库结构](#仓库结构)
-- [可选：codegraph](#可选codegraph)
-- [自定义](#自定义)
-- [常见问题](#常见问题)
-- [反馈与贡献](#反馈与贡献)
-- [协议](#协议)
+Slowmode 不再是重型 gate / 人格系统。它保留真正有用的检查，删除仪式感。
 
 ---
 
 ## 快速开始
 
-**最快路径（Cursor 项目规则）：**
+**安装为 Cursor skill，并打印 User Rule：**
 
 ```bash
 git clone https://github.com/lz10081/slowmode.git
-cd slowmode && ./scripts/install.sh cursor-rule /path/to/your-app
+cd slowmode && ./scripts/install.sh global
 ```
 
-或不克隆仓库：
+把打印出的文本粘贴到 **Cursor Settings → Rules → User Rules**，然后新开 Agent 会话。User Rule 只指向 Lite 协议，不再要求每条回复带 gate footer。
+
+**只安装到一个项目：**
 
 ```bash
-mkdir -p /path/to/your-app/.cursor/rules
-curl -fsSL -o /path/to/your-app/.cursor/rules/hardcore-dev-harness.mdc \
-  https://raw.githubusercontent.com/lz10081/slowmode/main/.cursor/rules/hardcore-dev-harness.mdc
+./scripts/install.sh cursor-rule /path/to/your-app
+# 或
+./scripts/install.sh claude-md /path/to/your-app
 ```
 
-**每次新聊天的第一句话：**
+**可选的一次性 repo 采用配置：**
 
-```text
-Mode: feature_iter — <你的任务>. 启动 Gate 0.
+```markdown
+# AGENTS.md
+
+Use Hardcore Dev Harness Lite for implementation/debug/refactor tasks.
+
+Repo overrides:
+- handoff_commit: true  # 只有想启用验证后自动 commit 时才加
+- Use repo-specific evidence profiles where applicable.
 ```
 
-**给应用仓库种一份账本（每个 repo 一次）：**
-
-```bash
-curl -fsSL -o FEATURES.md \
-  https://raw.githubusercontent.com/lz10081/slowmode/main/templates/FEATURES.md
-```
+只有当项目真的需要跨会话连续性时，才脚手架 `FEATURES.md`、`PROGRESS.md`、`DECISIONS.md`、`tasks/lessons.md`。
 
 ---
 
 ## 这是什么
 
-Slowmode **不是**应用，也 **不是** npm 包。它是你放进 Agent 的 **markdown 指令集**：
+Slowmode 是 markdown 指令，不是应用，也不是 npm 包。
 
 | 文件 | 用途 |
 |------|------|
-| `skills/hardcore-dev-harness/SKILL.md` | 完整 Skill（Amp、Cursor Agent Skills） |
-| `CLAUDE.md` | 单文件版（Claude Code、`AGENTS.md`、自定义指令） |
-| `.cursor/rules/hardcore-dev-harness.mdc` | Cursor / Windsurf 项目规则 |
-
-Agent 按 **6 道门禁** 工作（每次开聊必跑 Gate 0），保证有计划、有调研、有测试、有证据，并写入 `FEATURES.md` 供下次 session 冷启动。
+| `skills/hardcore-dev-harness/SKILL.md` | 完整 Lite skill，唯一 source of truth |
+| `CLAUDE.md` | Claude Code、`AGENTS.md`、自定义指令的单文件版 |
+| `.cursor/rules/hardcore-dev-harness.mdc` | 指向 skill 的短 Cursor/Windsurf 项目规则 |
+| `skills/hardcore-dev-harness/USER-RULE.txt` | 简短 Cursor 全局 User Rule 文本 |
+| `skills/hardcore-dev-harness/PERSISTENCE.md` | 如何保持 Lite 生效且不重新膨胀 |
 
 ---
 
 ## 解决什么问题
 
-| 痛点 | Slowmode 对策 |
-|------|----------------|
-| 重复造已有功能 | Gate 0：读账本 + 声明 `REUSE` / `EXTEND` / `NEW` / `REPLACE` |
-| 下个 session 从零查 | Gate 5：只追加的 `FEATURES.md` |
-| 「测试过了」但代码是坏的 | 证据门禁：贴 runner 输出 + 真实调用 |
-| Pivot = 整体重写 | 可替换文件夹 + 每功能一份 `CONTRACT.md` |
-| 长聊丢上下文 | 一个聊天一个功能；Gate 5 后开新聊 |
-| Sub-agent 重复读文件 | 5 字段 brief + 只返回紧凑报告 |
+| 痛点 | Lite 对策 |
+|------|-----------|
+| 重复造已有功能 | 连续性读取后声明一次 `REUSE` / `EXTEND` / `NEW` / `REPLACE` |
+| 用户已经给完整 spec，agent 还机械提问 | 把 spec 当边界文档，≤3 条复述验收标准 |
+| 成熟 repo 被强行套新骨架 | gate 式 skeleton 只用于 `new_project`；成熟 repo 扩展现有路径 |
+| “测试通过”但产品/数据质量不对 | evidence gate 要求真实调用和任务相关验证 |
+| 数据 pipeline 被口头 rubber-stamp | pipeline profile 要求 SQL sanity 和可见样本审查 |
+| 长任务被杀还声称完成 | long-job rule 要求 sample/time budget 和明确 `Unverified:` |
+| working tree 一团乱 | worktree hygiene + 可选验证后 handoff commit |
+| 用户纠正被忘记 | 可把反复出现的行为问题写入 `tasks/lessons.md` |
 
 ---
 
-## 支持的 Agent
+## Lite 协议
 
-| 平台 | 安装方案 | 路径 |
-|------|----------|------|
-| **Cursor** | C 或 E | `.cursor/rules/hardcore-dev-harness.mdc` 或 `.cursor/skills/hardcore-dev-harness/` |
-| **Windsurf** | C | 同上 `.mdc` |
-| **Claude Code** | B | 仓库根目录 `CLAUDE.md` |
-| **OpenAI Codex / Amp** | B 或 A | `AGENTS.md` 或 Amp skill 符号链接 |
-| **Cline / Continue** | B 或 D | 把 `CLAUDE.md` 贴进 Custom Instructions |
-| **GitHub Copilot** | D | 自定义指令（贴 `CLAUDE.md`） |
-| **ChatGPT / Claude / Gemini GPT** | D | System Prompt / Instructions |
+对 implementation/debug/refactor 工作：
 
-与技术栈无关：TS、Python、Go、Rust、移动端等均可，Skill 只规定 **流程**。
+1. 用 ~60 秒预算读取连续性文件：`PROGRESS.md`、`DECISIONS.md`、`FEATURES.md`、相关 lessons。
+2. 声明一次 `REUSE` / `EXTEND` / `NEW` / `REPLACE`。
+3. 把任务转成成功标准。若用户已有验收标准，≤3 条复述。
+4. 沿现有 ownership path 做最小改动。
+5. 用与任务匹配的证据验证。
+6. 按职责更新状态文件：
+   - `FEATURES.md` = 已交付行为 + 验证 + 运行 gotchas。
+   - `PROGRESS.md` = 当前工作和下一步，可变。
+   - `DECISIONS.md` = 持久架构/产品/数据决策。
+   - `tasks/lessons.md` = 反复出现的 agent 行为纠正。
+7. 清理工作树。
+8. 如果 `AGENTS.md` 设置 `handoff_commit: true`，只提交已验证、完整、可交付的 slice，且只提交本 session 自己改的文件。
 
----
-
-## 门禁流程
-
-```mermaid
-flowchart LR
-  G0["Gate 0\n上下文"]
-  G1["Gate 1\n灵魂拷问"]
-  G2["Gate 2\n骨架"]
-  G3["Gate 3\n调研"]
-  G4["Gate 4\nTDD/QA"]
-  G5["Gate 5\n编码+证据"]
-  G0 --> G1 --> G2 --> G3 --> G4 --> G5
-```
-
-| 门禁 | 强制做的事 | 卡死直到 |
-|------|------------|----------|
-| **0** | 读 `FEATURES.md` + 仓库；声明 `REUSE` / `EXTEND` / `NEW` / `REPLACE` | 计划已声明 |
-| **1** | 苏格拉底式 MVP 边界（每次 1–2 问） | 用户确认 MVP 文档 |
-| **2** | 可替换骨架：每功能一文件夹 + `CONTRACT.md` | 用户确认骨架 |
-| **3** | 联网核对官方文档；方案对比 | 用户选定方案 |
-| **4** | 实现前先写 ≥3 个边界测试 | 测试已定义 |
-| **5** | Fail-Fast 编码；贴测试与调用输出；更新账本 | 证据 + ledger |
-
-**Trivial Fast Path：** ≤30 行、单文件、可逆 → **只跑 Gate 0 + Gate 5**。
+纯讨论/问答不跑完整流程。如果问题涉及过去的 tradeoff，读取 `DECISIONS.md`。
 
 ---
 
-## 场景入口 Mode
+## Evidence profiles
 
-每次开聊声明（Gate 0 之后生效）：
+Lite 内置小型 evidence profile，只列必需证据：
 
-| 模式 | 起始门禁 | 场景 |
-|------|----------|------|
-| `new_project` | Gate 1 | 新项目 / 大套件 |
-| `feature_iter` | Gate 3 | 骨架上增一个小功能（默认） |
-| `refactor` | Gate 3 | 重写模块（先贴目录树与数据流） |
-| `debug_qa` | Gate 4 | 抓 Bug / QA 加固 |
+- `pipeline-monolith`：targeted tests、score/job invocation、SQL bucket/count sanity、API check、UI 可见时 browser check、可见样本审查。
+- `web-dashboard`：测试/typecheck、数据页面的 API/network check、browser render check、截图或简短视觉说明。
+- `cli-script`：`--help`、一次成功真实调用、行为改变时一次失败/非法输入调用、清理生成文件。
+
+项目专属 profile 放在 `AGENTS.md`，不要膨胀全局 skill。
 
 ---
 
-## 安装
+## Handoff commit policy
 
-为你的 Agent **选一种** 主入口。Cursor 可同时用规则 + Skill。
+全局默认：**除非用户明确要求，否则不 commit**。
 
-### 方案 A — Amp Skill
+Repo override：如果 repo 的 `AGENTS.md` 设置 `handoff_commit: true`，启用 autonomous handoff mode。
 
-```bash
-./scripts/install.sh amp-skill
+在 handoff mode 下，agent 只有在验证通过、工作是完整可交付 slice、且能只 stage 本 session 有意修改的文件时才 commit。若有无法安全分离的无关 dirty files，则报告 dirty tree，不 commit。
+
+结束顺序：
+
+```text
+verify
+→ 按需更新 FEATURES / PROGRESS / DECISIONS
+→ git status
+→ 只 stage 本 session 文件
+→ 检查 staged diff
+→ 允许且安全时 commit
+→ final Plan / Evidence / Commit / Risks / Next handoff
 ```
 
-开聊：`Mode: new_project — 我要做 X，请加载 hardcore-dev-harness 技能。`
+---
 
-### 方案 B — Claude Code / AGENTS.md
+## 最终 handoff 形状
 
-```bash
-./scripts/install.sh claude-md /path/to/your-app
+不再使用每条消息的 gate footer。最终回复使用或压缩：
+
+```markdown
+Plan:
+- <做了什么 / 选择了什么>
+
+Evidence:
+- <命令和结果>
+
+Commit:
+- <commit hash 或为什么没 commit>
+
+Risks:
+- <剩余风险 / 未验证项>
+
+Next:
+- <建议下一步，如有>
 ```
 
-若工具链要求 `AGENTS.md`，用同名文件即可。
+---
 
-### 方案 C — Cursor / Windsurf 规则
-
-```bash
-./scripts/install.sh cursor-rule /path/to/your-app
-```
-
-在 Cursor Rules 中启用，或任务开始时 `@hardcore-dev-harness`。
-
-### 方案 D — 自定义指令
-
-将 [`CLAUDE.md`](./CLAUDE.md) 全文贴入 Custom Instructions / System Prompt。
-
-### 方案 E — Cursor Agent Skill（Cursor 用户推荐）
-
-**个人级（所有项目）：**
+## 安装 targets
 
 ```bash
-git clone https://github.com/lz10081/slowmode.git
-cd slowmode && ./scripts/install.sh cursor-skill
-```
-
-**仓库级（团队共享）：**
-
-```bash
-./scripts/install.sh project-skill /path/to/your-app
-```
-
-路径：`.cursor/skills/hardcore-dev-harness/SKILL.md` 或 `~/.cursor/skills/hardcore-dev-harness/SKILL.md`。
-
-### 安装脚本
-
-```bash
-git clone https://github.com/lz10081/slowmode.git
-cd slowmode
 ./scripts/install.sh --help
 ```
 
-不克隆的一行命令：
+常用 targets：
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/lz10081/slowmode/main/scripts/install.sh | bash -s -- cursor-rule
-```
-
----
-
-## 在你的项目里使用
-
-Slowmode 装在 **你的应用仓库** 里，不限于本 Skill 分发仓库。
-
-1. 按上文 **安装** 一种 Agent 入口。
-2. 在应用根目录添加 `FEATURES.md`（[模板](./templates/FEATURES.md)）。
-3. **可选：** 在 `CLAUDE.md` / `AGENTS.md` 里追加项目专属规则。
-4. **每个功能开新聊天**，第一句带 `Mode: …`，让 Gate 0 先跑。
-
-Gate 2 之后，每个功能一个目录：
-
-```text
-features/my-feature/
-├── index.ts
-└── CONTRACT.md    # 5 行：Inputs / Outputs / Side-effects / Deps / Replaces
-```
-
-新建功能时复制 [`templates/CONTRACT.md`](./templates/CONTRACT.md)。
-
----
-
-## 日常 Prompt
-
-**新项目**
-
-```text
-Mode: new_project — 我要做一个高频交易日志 App，启动 Gate 1.
-```
-
-**单个功能（新聊天）**
-
-```text
-Mode: feature_iter — 骨架已就绪，做滑动删除记账卡片，启动 Gate 3.
-```
-
-**重构**
-
-```text
-Mode: refactor — 目录树与数据流：[粘贴]. 启动 Gate 3.
-```
-
-**Debug**
-
-```text
-Mode: debug_qa — 空 API 响应时崩溃，启动 Gate 4.
-```
-
-若 Agent 跳过 Gate 0 或无测试输出就声称完成，请对照 [EXAMPLES.md](./EXAMPLES.md) 要求重做。
-
----
-
-## 核心哲学
-
-1. **上下文先行** — 先读 `FEATURES.md` 与仓库现状。
-2. **设计先行** — 用思考换少改代码。
-3. **模块可替换** — Pivot = 换文件夹且 `CONTRACT` 对齐。
-4. **调研先行** — 每功能核对当前官方文档。
-5. **Fail-Fast + 证据闭环** — 禁止静默兜底；禁止无粘贴的「测试通过」。
-
----
-
-## Sub-agent 委派
-
-Main agent 当 PM。Brief **必须** 含五个字段：
-
-```text
-Goal:           <一句话>
-Files to READ:  <路径>
-Do NOT re-read: <已在主上下文>
-Constraints:    <非目标、风格、测试>
-Return shape:   outcome | files changed | evidence | blockers | next step
-```
-
-Main agent **永不外包**：Gate 0、Gate 1、最终集成、Gate 5 自审、`FEATURES.md` 更新。
-
-详见 [EXAMPLES.md §5](./EXAMPLES.md#5-delegation-brief-main-agent--sub-agent)。
-
----
-
-## FEATURES.md 账本
-
-放在 **应用仓库根目录**。每次 Gate 5 追加一段：
-
-```markdown
-## <feature-name>  (added YYYY-MM-DD, supersedes: <prev|none>)
-- Location:        <path/to/feature/>
-- Public API:      <signatures or endpoints>
-- Inputs/Outputs:  <one line, mirrors CONTRACT.md>
-- Edge cases tested: <bullet list>
-- Verified by:     <exact command>
-- Notes:           <gotchas>
-```
-
-历史段落 **不可改**；更正用新段落 + `supersedes:`。
-
----
-
-## 范例
-
-**[EXAMPLES.md](./EXAMPLES.md)** — Gate 0 开场、CONTRACT、账本块、证据粘贴、委派 brief、agree/disagree、前后对比、快速通道。
-
-产出形状不对就 **打回去**。
+| Target | 效果 |
+|--------|------|
+| `global` | 安装 Cursor skill 并打印 User Rule 文本 |
+| `user-rule` | 打印 Cursor Settings → Rules → User Rules 文本 |
+| `cursor-rule [path]` | 复制短 `.mdc` 项目规则 |
+| `cursor-skill` | 复制 skill 到 `~/.cursor/skills/hardcore-dev-harness/` |
+| `project-skill [path]` | 复制 skill 到 repo 的 `.cursor/skills/` |
+| `claude-md [path]` | 复制 `CLAUDE.md` 单文件版 |
+| `amp-skill` | symlink 到 Amp skills |
+| `templates` | 复制 legacy `FEATURES.md` + `CONTRACT.md` 模板 |
 
 ---
 
@@ -324,65 +179,37 @@ Main agent **永不外包**：Gate 0、Gate 1、最终集成、Gate 5 自审、`
 ```text
 slowmode/
 ├── README.md / README.zh.md
-├── LICENSE
-├── CONTRIBUTING.md
 ├── CLAUDE.md
 ├── EXAMPLES.md
-├── FEATURES.md              ← 本仓库 Skill 的 demo 账本
-├── templates/               ← 复制到你的应用
+├── FEATURES.md
+├── templates/
 ├── scripts/install.sh
-├── .github/ISSUE_TEMPLATE/
 ├── .cursor/rules/hardcore-dev-harness.mdc
-└── skills/hardcore-dev-harness/SKILL.md
+└── skills/hardcore-dev-harness/
+    ├── SKILL.md
+    ├── PERSISTENCE.md
+    └── USER-RULE.txt
 ```
 
 ---
 
-## 可选：codegraph
+## 范例
 
-安装 [codegraph](https://github.com/colbymchenry/codegraph) 后，Gate 0 优先用语义搜索，工具调用约减 70%。未安装则自动回退 grep，**不影响 Slowmode 本身**。
-
----
-
-## 自定义
-
-在 `CLAUDE.md` 或 Skill 末尾追加：
-
-```markdown
-## 项目专属规则
-- TypeScript 严格模式
-- API 必须有 Vitest 测试
-```
+见 [EXAMPLES.md](./EXAMPLES.md)：continuity opener、success criteria、evidence、pipeline sample review、handoff commit、delegation brief、lessons capture。
 
 ---
 
-## 常见问题
+## 贡献
 
-**每个项目都要 clone 本仓库吗？**  
-不用。复制一种入口或跑一次 `install.sh` 即可。
+行为规则变更应保持这些入口一致：
 
-**改个错别字也要走全套门禁吗？**  
-不用。Trivial Fast Path 对 ≤30 行单文件可逆修改只跑 Gate 0 + 5。
+- `skills/hardcore-dev-harness/SKILL.md`
+- `CLAUDE.md`
+- `.cursor/rules/hardcore-dev-harness.mdc`
+- output 形状改变时更新 `EXAMPLES.md`
+- 用户使用方式改变时更新 README
 
-**还没有 FEATURES.md？**  
-Gate 0 会用 [templates/FEATURES.md](./templates/FEATURES.md) 帮你脚手架。
-
-**Cursor 规则 vs Skill？**  
-规则按项目启用；Skill 描述更完整，便于 Agent 自动选用。
-
-**如何更新？**  
-重新 `curl` / `install.sh` 或对 clone 执行 `git pull`。版本见 `SKILL.md` frontmatter 的 `version`。
-
----
-
-## 反馈与贡献
-
-| 操作 | 链接 |
-|------|------|
-| 报 Bug | [Bug report](https://github.com/lz10081/slowmode/issues/new?template=bug_report.yml) |
-| 功能建议 | [Feature request](https://github.com/lz10081/slowmode/issues/new?template=feature_request.yml) |
-| 提问 | [Question](https://github.com/lz10081/slowmode/issues/new?template=question.yml) |
-| 贡献指南 | [CONTRIBUTING.md](./CONTRIBUTING.md) |
+见 [CONTRIBUTING.md](./CONTRIBUTING.md)。
 
 ---
 

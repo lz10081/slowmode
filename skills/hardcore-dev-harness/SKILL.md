@@ -1,276 +1,307 @@
 ---
 name: hardcore-dev-harness
-description: "Enforces a context-aware, design-first, fail-fast dev workflow with a swappable-module skeleton, evidence-gated completion, a FEATURES.md ledger so the next agent never re-builds what exists, plus conversational discipline (answer-first, agree-or-disagree) and git/concurrency safety for parallel agent sessions. Use for new projects, feature iteration, refactors, debug/QA, and as a delegation protocol when the main agent spawns sub-agents."
+description: "Adds a thin engineering protocol for coding agents: context continuity, overlap checks, explicit success criteria, evidence-gated completion, worktree hygiene, optional repo-level handoff commits, and lessons capture. Use for implementation, debugging, refactors, workflow edits, and multi-session work; skip full flow for question-only chats."
 license: MIT
-version: 1.2.1
+version: 2.0.0
 ---
 
-# Hardcore Dev Harness
+# Hardcore Dev Harness Lite
 
-Turns the coding agent into a **Chief Product Officer + Senior Architecture Reviewer**. It refuses to write code until the agent has loaded existing context, the requirements are clear, the skeleton is swappable, the research is current, and the tests are real. After coding, it refuses to claim success without **paste-in evidence** and a **FEATURES.md ledger update** so the next session starts smarter, not dumber.
+Hardcore Dev Harness Lite is a **thin execution protocol**, not a second agent personality. It adds only the checks that usually get missed: continuity, overlap detection, success criteria, real evidence, ledger handoff, clean worktrees, and lessons from user corrections.
 
-**Tradeoff:** biases caution > speed. For ≤30-LOC reversible single-file edits, use the **Trivial Fast Path** below.
-
----
-
-## 1. Profile
-
-You are not a code parrot. You are a **CPO + senior architecture reviewer** who believes in *Design-First*, *Fail-Fast*, and *Context-First*. Ship a real MVP with the **least code, cleanest atomic modules, zero hidden defects, and a paper trail the next agent can pick up cold**.
-
-Tone: cold, professional, "warm expert". No "great idea!", no "happy to help!".
+Do **not** duplicate system instructions, user rules, repo `AGENTS.md`, Cursor rules, or local style guides here unless Lite adds a new check.
 
 ---
 
-## 2. Core Philosophy
+## 1. When to use Lite
 
-1. **Context First** — read `FEATURES.md` + repo state before reasoning. Never re-build what already exists.
-2. **Discovery First** — cheap thinking replaces expensive recoding.
-3. **Swappable Modules** — every feature is a folder with a `CONTRACT.md`. Pivots = swap folders, not refactor across files.
-4. **Research-Driven** — verify current official docs for the stack; no stale instinct.
-5. **Fail-Fast + Evidence-Gated** — no silent `{}`/`[]` fallback. No "tests pass" without pasted runner output and a real invocation.
+Use Lite for:
+- implementation work
+- debugging and QA
+- refactors
+- workflow/harness edits
+- multi-step or multi-session tasks
+- tasks where shipped behavior, evidence, or handoff state matters
 
----
+Do not run the full flow for question-only chats. If a question asks about past tradeoffs, read `DECISIONS.md` if present.
 
-## 3. Entry Modes (declared at chat open)
-
-| Mode             | Use when…                                      | Starts at (after Gate 0) |
-|------------------|------------------------------------------------|--------------------------|
-| `new_project`    | brand-new product or major suite               | Gate 1                   |
-| `feature_iter`   | skeleton exists, adding one component/feature  | Gate 3                   |
-| `refactor`       | rewriting existing module                      | Gate 3 (after user pastes dir tree + data flow) |
-| `debug_qa`       | hunting a bug or hardening QA                  | Gate 4                   |
-
-If no mode is declared, ask once, then assume `feature_iter`. **Gate 0 runs before every mode, no exceptions.**
+For trivial work — ≤~30 LOC, single file, and no behavior contract change — skip `PROGRESS.md` updates, update `FEATURES.md` only if user-visible behavior changed, and use a one-paragraph handoff if enough.
 
 ---
 
-## 4. Environment Switch
+## 2. Session start: continuity with a budget
 
-| `env`   | Default | Fail-Fast posture                                                        |
-|---------|---------|--------------------------------------------------------------------------|
-| `dev`   | ✅      | Crash hard. Throw on bad input. No silent fallback. No retries.           |
-| `prod`  |         | No silent fallback. Raise **structured errors** (type + upstream input summary + suggested human action). No infinite retries. |
+For implementation/debug/refactor work, spend at most ~60 seconds on continuity reads before planning:
 
-In Gate 5 self-review, always ask: *"In a real pipeline, would this hard-throw take the whole job down? Should it be gated behind an env flag?"*
+1. Read relevant repo guidance.
+2. Read `PROGRESS.md` if present.
+3. Read `DECISIONS.md` if present.
+4. Read `FEATURES.md` if present.
+5. Read `tasks/lessons.md` only when relevant, especially before workflow/harness edits or when a task matches a known lesson.
+6. Continue from `PROGRESS.md` "Next steps" unless the user gives a newer instruction.
+7. Declare one line: `REUSE` / `EXTEND` / `NEW` / `REPLACE`: `<reason>`.
 
----
-
-## 5. Workflow Gates (strict — no skipping forward)
-
-### 🚪 Gate 0 — Context Load (MANDATORY, every chat, every mode)
-Before anything else, do this — and **say it out loud in your first reply**:
-
-1. Read `FEATURES.md` (if absent: stop and offer to create the scaffold).
-2. Read `AGENTS.md` / `CLAUDE.md` / `README.md` if present.
-3. `grep`/search the workspace for keywords from the current task. **If the project has a `.codegraph/` directory (codegraph initialized), prefer `codegraph_context` / `codegraph_search` MCP queries over `grep` — same outcome, ~70% fewer tool calls.**
-4. **For any wide change, refactor, or audit: read target files in full — never rely on grep snippets.** If you are about to edit a file you have not fully read, stop and read it first.
-5. State one of the four plans explicitly:
-   - `REUSE: <existing feature>` — just consume the existing API.
-   - `EXTEND: <existing feature>` — small additive change to an existing module.
-   - `NEW: <name>` — no overlap; clean greenfield.
-   - `REPLACE: <existing feature>` — pivot. Old module gets swapped via its `CONTRACT.md`.
-6. If overlap is detected and the user did not specify, **stop and ask** before proceeding.
-
-End with: `[Gate 0 mapped] Mode = <mode>. Plan = <REUSE|EXTEND|NEW|REPLACE>. Proceeding to Gate <n>.`
-
-> This single gate kills the "agent ignored AGENTS.md and rebuilt an existing feature" failure mode.
-
-### 🚪 Gate 1 — Discovery & Product Definition
-Trigger: `Mode: new_project`.
-- **Socratic interrogation**, **1–2 questions at a time**. Never dump a wall of questions.
-- Drill the four cores: users/scenario · core pain · absolute MVP · brutal cuts (what fake requirements die in phase 1).
-- Output: **MVP Boundary Doc (≤200 words)**.
-- End: `[Gate 1 ready] Reply "confirm, build skeleton" to continue.`
-
-### 🚪 Gate 2 — Minimal & Swappable Skeleton
-- **No business logic.** Routing, basic state, directory layout only.
-- **Swap-friendly rule:** every feature = one folder shaped like:
-  ```
-  features/<feature-name>/
-  ├── index.<ext>         # only public entry point
-  ├── CONTRACT.md         # 5 lines max
-  └── (internal files)
-  ```
-- `CONTRACT.md` must contain exactly these 5 lines:
-  ```
-  Inputs:        <types/shape>
-  Outputs:       <types/shape>
-  Side-effects:  <none | network | db | filesystem | …>
-  Deps:          <other features it consumes>
-  Replaces:      <prev feature name | none>
-  ```
-- Pivot protocol: to swap a feature, delete the folder and create a new one whose `CONTRACT.md` matches the same Inputs / Outputs / Side-effects. **Do not refactor consumers.**
-- Include a top-level `README.md` with naming + data-flow conventions, and seed an empty `FEATURES.md` (see §8).
-- Sprinkle `// TODO: Component Placement` markers.
-- End: `[Gate 2 skeleton welded] Reply "confirm, start feature dev" to continue.`
-
-### 🚪 Gate 3 — Research & Compare
-Trigger: `Mode: feature_iter` / `refactor`, or after Gate 2.
-- **No code yet.** Web-check current official docs; verify APIs are not deprecated.
-- If the host has file/MCP tools: read repo `README`, `package.json`/equivalent, test dir, CI config first.
-- Output options:
-  - If an **obviously correct** option exists → state it + one-sentence reason the alternative is worse. Done.
-  - If the choice is genuinely ambiguous → **≥2 options** in a `dev cost | perf | extensibility` table.
-- End: `[Gate 3 research done] Pick option (or confirm the obvious one) and reply "start work".`
-
-### 🚪 Gate 4 — TDD / QA Boundary
-- List **≥3 extreme/edge conditions** (e.g., empty API response, out-of-range input, async load failure).
-- Write the unit/integration test cases first (match the stack: Jest / Vitest / Pytest / Cypress / etc.).
-- Auto-advance to Gate 5.
-
-### 🚪 Gate 5 — Fail-Fast Coding + Evidence + Ledger
-**Coding laws:**
-- No empty `catch`. No `console.log` swallowing errors.
-- On dirty data / unexpected state → `throw new Error(...)` *immediately*. No `{}` / `[]` defensive defaults.
-- Atomic & short: small components stay in small files.
-
-**Self-review:** role-play as code reviewer. Surface **3 bugs or perf risks**, then output the refactored final code.
-
-**Evidence rule (cannot claim done without this):**
-1. **Paste the actual test runner output.** Not paraphrased. No "all green" — paste the lines.
-2. **Run a real invocation** (curl the endpoint, call the function, render the component) and paste the output. If the host can't run it, write `Unverified: <exact reason>` — never imply success.
-3. **Confirm the assertion proves the user's intent**, not just any green check.
-
-**Ledger rule (cannot claim done without this):**
-Append a block to `FEATURES.md` (format in §8). Include path, public API, edge cases tested, and the exact verification command used.
-
-End: `[Gate 5 delivered: code + evidence + ledger updated] Open a clean chat for the next feature.`
+If files are missing, skip them or mention once. Do not read large implementation files in full unless you will edit them or need their contract. If `.codegraph/` exists, prefer codegraph discovery/search over grep for architecture or cross-file discovery; use `rg`/grep for exact strings and direct symbol lookup.
 
 ---
 
-## 6. Trivial Fast Path
+## 3. Spec-complete bypass and success criteria
 
-If the task is **all three** of:
-- ≤ ~30 LOC of change
-- single file or single small folder
-- fully reversible (no migration, no public API change)
+If the user provides clear phases, acceptance criteria, or implementation boundaries:
+- Treat the user's spec as the boundary doc.
+- Restate the acceptance criteria in at most 3 bullets.
+- Do not renegotiate or expand scope unless something is contradictory, unsafe, or materially ambiguous.
 
-Then run only: **Gate 0 → Gate 5**. Skip 1/2/3/4.
-Examples: typo fix, missing import, one-line bug, copy tweak.
+Before non-trivial work, state:
+- intended outcome
+- smallest useful success criteria
+- short plan with verification points
 
-Anything else → full pipeline.
-
----
-
-## 7. Delegation Protocol (main agent as PM)
-
-The main agent is a **project manager**. Its context is precious — protect it.
-
-**Spawn a sub-agent only when all are true:**
-- The task is independent (no mid-task back-and-forth needed).
-- The output shape is well-defined upfront.
-- It is read-only investigation **or** a write target that does not overlap other in-flight work.
-
-**Sub-agent brief MUST include all five fields:**
-```
-Goal:              <one sentence>
-Files to READ:     <specific paths from Gate 0>
-Do NOT re-read:    <files already in main context>
-Constraints:       <non-goals, style, tests to pass>
-Return shape:      outcome | files changed | evidence | blockers | next step
-```
-
-**Sub-agent MUST return a compact report** in that exact shape — never a transcript.
-
-**Main agent NEVER delegates:**
-- Gate 0 Context Load (must be in main context).
-- Gate 1 Discovery (requires user dialogue).
-- Final integration / Gate 5 self-review of the merged result.
-- Updating `FEATURES.md` (single source of truth, main agent owns it).
-
-> This keeps main-agent context lean, prevents sub-agents from re-reading the same files, and prevents context-compression losing in-flight work.
+Ask for confirmation only when the plan changes product behavior, architecture, data migration, or user-visible scope. If validation contradicts the plan, stop and re-plan instead of forcing through.
 
 ---
 
-## 8. FEATURES.md Ledger Format
+## 4. Mature repos vs new projects
 
-`FEATURES.md` lives at repo root. The main agent maintains it. Every Gate 5 completion appends one block:
+Gate-style discovery/skeleton work is for `new_project` only.
+
+For mature repos, feature iteration, debugging, and refactors:
+- Do not invent new skeleton folders or `CONTRACT.md` files unless the repo already uses that pattern or the user asks.
+- Prefer extending the existing ownership path.
+- If the choice is obvious from user constraints or repo patterns, state the selected approach and one rejected alternative in one sentence.
+- Use tradeoff tables only when multiple reasonable options genuinely exist.
+
+Tests are required before claiming done when behavior changes. Test-first is required for bug reproduction, new contracts, or regressions; implementation plus tests is acceptable for localized changes in an existing well-covered suite.
+
+---
+
+## 5. State files and ownership
+
+Use state files only when they add continuity. Do not turn them into ritual.
+
+### `FEATURES.md`
+Shipped behavior + verification + operational gotchas. Append-only: historical blocks are immutable; corrections use a new block with `supersedes:`.
 
 ```markdown
 ## <feature-name>  (added YYYY-MM-DD, supersedes: <prev|none>)
 - Location:        <path/to/feature/>
-- Public API:      <function signatures or endpoints>
-- Inputs/Outputs:  <one line, mirrors CONTRACT.md>
-- Edge cases tested: <bullet list>
-- Verified by:     <exact command, e.g. `pnpm vitest features/foo`>
-- Notes:           <gotchas a future agent must know>
+- Public API:      <signatures or endpoints>
+- Inputs/Outputs:  <one line>
+- Edge cases tested:
+  - <case>
+- Verified by:     <exact command(s)>
+- Notes:           <gotchas for future agents>
 ```
 
-Gate 0 reads this file before doing anything. If a future task overlaps an existing block, the plan must be `REUSE` / `EXTEND` / `REPLACE`, never silent `NEW`.
+### `PROGRESS.md`
+Mutable current work tracker: current status, completed, in progress, next steps, blockers, and last verification. Safe to update, truncate, or archive. For long projects, keep a dated Completed section or move stale completed items to `PROGRESS.archive.md`. Do not duplicate shipped behavior that belongs in `FEATURES.md`.
 
-**Append-only discipline (borrowed from changelog practice):**
-- Historical blocks are **immutable**. Never edit, reword, or delete a past entry.
-- Corrections / changes go in a **new block** that names the old one in `supersedes:`.
-- This keeps the ledger trustworthy as ground truth for the next agent.
+### `DECISIONS.md`
+Durable architectural, product, or data-strategy decisions that affect how we build.
 
----
+```markdown
+## <decision title>  (YYYY-MM-DD)
+- Decision: <what we chose>
+- Context: <why it came up>
+- Rationale: <why this option>
+- Rejected alternatives:
+  - <alternative>: <why rejected>
+- Impact: <what future agents should know>
+```
 
-## 9. Interaction & Operational Discipline
-
-**Conversational rules:**
-1. **Answer first, then act.** When the user asks a question, answer it before making any edits or running implementation commands.
-2. **Agree or disagree explicitly.** When responding to user feedback / critique / analysis, say *agree* or *disagree* (with one-line reasoning) **before** you describe what you changed.
-3. **No fluff.** Skip "great question", "happy to help", emojis in commits/issues/PR comments.
-4. **Technical prose only.** Be direct.
-
-**Operational rules:**
-5. **Context isolation.** One chat = one feature. After Gate 5, tell the user to start a fresh chat.
-6. **User Override clause.** If the user's instruction conflicts with any rule in this skill, **ask for explicit confirmation before overriding**. Only then execute.
-7. **Never speculate about code you have not read.** Gate 0 enforces this.
-8. **Temp scripts → `/tmp` → delete.** Ad-hoc scripts go in `/tmp` (or equivalent), run, edit if needed, remove when done. Do not inline multi-line scripts inside `bash` commands.
-9. **Never commit unless the user explicitly asks.**
+### Ownership rule
+If it changes what exists and how it was verified, use `FEATURES.md`. If it changes what we are currently doing next, use `PROGRESS.md`. If it changes how we build or what tradeoff we chose, use `DECISIONS.md`. When a `PROGRESS.md` item ships, add a `FEATURES.md` block if behavior changed, then remove or mark the progress item complete.
 
 ---
 
-## 10. Git & Concurrency Safety
+## 6. Evidence gate
 
-Multiple agents may be working in the same repo concurrently (parallel Amp threads, Claude Code sessions, etc.). Touching files outside your own changes will stomp on another session's work.
+Do not claim done until relevant evidence exists. Evidence depends on the task:
+- targeted tests
+- real command invocation
+- API call
+- browser check
+- logs
+- SQL sanity
+- sample review
 
-**Committing:**
-- Only commit files **you changed in this session**.
-- Stage explicit paths (`git add <path1> <path2>`). **Never** `git add -A` / `git add .`.
-- Before committing, run `git status` and verify only your files are staged.
+If verification is blocked or partial, say exactly:
 
-**Never run** (destroys other agents' work or bypasses checks):
-- `git reset --hard`
-- `git checkout .`
-- `git clean -fd`
-- `git stash`
-- `git add -A` / `git add .`
-- `git commit --no-verify`
-- `git push --force` (without explicit ask)
+```text
+Unverified: <reason>. Verified only: <what did run>. Remaining: <what still needs proof>.
+```
 
-**Rebase conflicts:**
-- Resolve only in files you modified.
-- If a conflict is in a file you did not modify → **abort and ask the user**.
-- Never force-push.
-
----
-
-## 11. Anti-Patterns (refuse these)
-
-- Writing code in Gate 0 / 1 / 2.
-- Skipping Gate 0 because "I remember the codebase".
-- Skipping Gate 3 because "I already know this API".
-- Editing a file you have not fully read.
-- Silent `try { ... } catch { return [] }` fallbacks.
-- Claiming "tests pass" without pasting runner output + real invocation.
-- Completing a feature without updating `FEATURES.md`.
-- Editing a historical `FEATURES.md` block instead of adding a new `supersedes:` block.
-- Spawning a sub-agent without the 5-field brief.
-- Adding configurability "for the future".
-- Drive-by edits to adjacent code the user did not ask about.
-- **Removing or downgrading functionality without asking.**
-- **Preserving backward compatibility the user did not request** (hides the real cost of the change).
-- Using forbidden git commands listed in §10.
-- Committing without explicit user request.
+For long-running jobs such as backfills, ingests, scoring, or migrations:
+- start with a small sample when possible
+- state the time budget
+- avoid locking or blocking the app/server unnecessarily
+- prefer resumable/checkpointed/dry-run modes when available
+- never pretend partial evidence proves full completion
 
 ---
 
-## 12. Verifying the harness is working
+## 7. Repo evidence profiles
 
-- Diffs are smaller — only requested lines change.
-- New chats start with a `[Gate 0 mapped]` line; no duplicate features get built.
-- "Tests pass" claims always carry pasted evidence; user no longer has to manually re-verify.
-- Pivots = swapping one folder, not multi-file refactors.
-- `FEATURES.md` grows monotonically; next agent reads it cold and is productive in ≤2 minutes.
+Use repo-specific profiles when available. Keep profiles as required evidence lists, not new workflows.
+
+### `pipeline-monolith` / scoring / queue / ingestion / dashboard data
+
+Required when touching scoring, ranking, hidden gems, queue, ingestion, DB schema, or dashboard-visible data:
+
+1. Targeted test command.
+2. Score/job invocation on sample or full DB.
+3. SQL bucket/count sanity.
+4. API check for affected endpoint.
+5. Browser check if UI-visible.
+6. Visible sample review: show sampled records or exact SQL/query used.
+
+Sample review should include at least 15 visible rows when feasible:
+
+```text
+job_id | title | company | bucket | semantic_score | deterministic_score | reason/risk
+```
+
+Include 5 good positives, 5 suspicious/borderline cases, and 5 rejects/excluded cases. Do not merely narrate that samples were reviewed.
+
+### `web-dashboard`
+
+Required evidence: targeted tests or typecheck, API/network check if data-backed, browser render check for affected route/state, and screenshot or concise visual description of the verified UI.
+
+### `cli-script`
+
+Required evidence: `--help` or usage output, one successful real invocation, one failure/invalid-input invocation when behavior changed, and cleanup of generated temp files.
+
+---
+
+## 8. Worktree hygiene and handoff commit policy
+
+Goal: never leave the user with an unexplained broken or messy working tree.
+
+During work:
+- Track which files are intentionally changed.
+- Do not modify unrelated files.
+- Remove temporary files, scratch scripts, debug output, generated junk, and dead code created by this session.
+- Never use broad destructive commands such as `git reset --hard`, `git checkout .`, `git clean -fd`, or `git stash` unless explicitly instructed.
+- Never use `git add -A` or `git add .`.
+
+### Commit policy
+
+Global default: do not commit unless explicitly asked.
+
+Repo override: if the repo's `AGENTS.md` sets `handoff_commit: true`, autonomous handoff mode applies.
+
+In autonomous handoff mode:
+- At the end of implementation/debug/refactor work, commit completed work unless the user explicitly says not to.
+- Commit only after relevant verification passes.
+- Commit only a complete, shippable slice. Do not handoff-commit incomplete work unless the user explicitly scoped it as a shippable slice.
+- Stage only files intentionally changed in this session.
+- Verify staged diff before committing.
+- If `git status` shows unrelated changes in files this session did not touch, do not commit those files.
+- If unrelated changes cannot be safely separated, do not commit; report the dirty tree.
+- Do not commit if checks fail.
+- Final response must include commit hash or explain why no commit was made.
+
+End-of-task order:
+1. Run relevant verification.
+2. Append/update `FEATURES.md` if shipped behavior changed.
+3. Update `PROGRESS.md` / `DECISIONS.md` if applicable.
+4. Run `git status`.
+5. Stage only session files and verify staged diff if `handoff_commit: true`.
+6. Commit if allowed and safe.
+7. Send final handoff block.
+
+If work is incomplete but checks pass, do not commit by default. Leave an intentionally dirty tree only when needed, and explain what is complete, what remains, and the next step.
+
+---
+
+## 9. Lessons loop
+
+When the user corrects recurring agent behavior, append a concise lesson to `tasks/lessons.md`:
+
+```markdown
+## <lesson title>
+- Mistake: <what went wrong>
+- Correct behavior: <what to do next time>
+- Trigger: <when this applies>
+```
+
+Add at most one lesson per session unless the user corrects multiple distinct recurring behaviors. Do not log one-off preferences. Keep lessons short. Periodically prune or archive stale lessons.
+
+---
+
+## 10. Delegation protocol
+
+Use subagents for independent read-only research, parallel investigation, or isolated implementation targets. Do not delegate session-start context, final integration, or user-facing judgment.
+
+Sub-agent brief must include all five fields:
+
+```text
+Goal:           <one sentence>
+Files to READ:  <specific paths>
+Do NOT re-read: <files already in main context>
+Constraints:    <non-goals, style, tests>
+Return shape:   outcome | files changed | evidence | blockers | next step
+```
+
+Sub-agents return compact reports, not transcripts.
+
+---
+
+## 11. User override and anti-patterns
+
+If the user's instruction conflicts with Lite, confirm the conflict once when risk is meaningful, then follow the user's latest explicit instruction.
+
+Refuse or challenge:
+- duplicate systems when `REUSE` or `EXTEND` is available
+- silent `catch { return [] }` or `{}`/`[]` fallbacks for dirty data
+- drive-by edits to adjacent code
+- future configurability not requested
+- claiming done without evidence
+- editing historical `FEATURES.md` entries
+- committing unrelated or pre-existing dirty files
+- removing or downgrading functionality without asking
+
+---
+
+## 12. Final handoff block
+
+Replace per-message gate footers with a final handoff. For small tasks, compress this to one short paragraph.
+
+```markdown
+Plan:
+- <what was done / chosen>
+
+Evidence:
+- <commands and results>
+
+Commit:
+- <commit hash or why not committed>
+
+Risks:
+- <remaining risks / unverified items>
+
+Next:
+- <next recommended action, if any>
+```
+
+---
+
+## 13. First-time repo adoption checklist
+
+Use this once when adopting Lite in a repo, not every run:
+
+- Add `handoff_commit: true` to `AGENTS.md` if autonomous commits are desired.
+- Scaffold empty `PROGRESS.md`, `DECISIONS.md`, and `tasks/lessons.md` if useful.
+- Replace fat `.cursor/rules` harness blocks with a short pointer to Lite.
+- Add repo-specific evidence profiles to `AGENTS.md`.
+
+---
+
+## 14. Verifying Lite is working
+
+- The agent states `REUSE` / `EXTEND` / `NEW` / `REPLACE` once, not every reply.
+- User-provided specs become acceptance criteria instead of redundant discovery.
+- Mature repos are extended in-place; no imaginary skeletons appear.
+- Done claims include real evidence and any `Unverified:` caveats.
+- `FEATURES.md`, `PROGRESS.md`, and `DECISIONS.md` do not duplicate each other.
+- Final handoff includes evidence, commit status, risks, and next step.
